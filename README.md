@@ -1,6 +1,6 @@
 #  RDF Converter
 
-A pure Python implementation for converting documents to RDF that works on Streamlit Cloud without requiring Java or external dependencies.
+A pure Python implementation for converting documents to RDF that works on Streamlit Cloud.
 
 ## Overview
 
