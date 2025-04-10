@@ -1,67 +1,55 @@
-# RDF Converter
+#  RDF Converter
 
-A minimalist Streamlit application that uses SPARQL-Anything to convert various file formats to RDF.
+A pure Python implementation for converting documents to RDF that works on Streamlit Cloud without requiring Java or external dependencies.
 
 ## Overview
 
-This simplified application focuses on the core functionality:
-- Upload a single file (XML, JSON, CSV, etc.)
-- Transform it to RDF (Turtle format)
-- Display and download the results
+This application is specifically designed to work on Streamlit Cloud:
 
-## Requirements
+- Converts XML, JSON, and CSV files to RDF (Turtle format)
+- Uses pure Python implementation (no Java or external dependencies)
+- Simplified interface with file preview and RDF output
+- Download functionality for the generated RDF
 
-- Python 3.8 or higher
-- Java 11 or higher (required for SPARQL-Anything)
+## Deployment on Streamlit Cloud
 
-## Deployment Instructions
+### 1. Fork/Create a GitHub Repository
 
-### 1. Install Dependencies
+Create a new repository with these files:
+- `streamlit_cloud_app.py`
+- `requirements.txt`
+- `README.md`
 
-```bash
-pip install -r requirements.txt
-```
+### 2. Deploy on Streamlit Cloud
 
-### 2. Set Proper Permissions for Temp Directory
-
-SPARQL-Anything needs to download a JAR file to a temporary directory. Make sure the app has write permissions to the temp directory:
-
-```bash
-# Check the default temp directory
-python -c "import tempfile; print(tempfile.gettempdir())"
-
-# Ensure write permissions
-chmod -R 777 /your/temp/directory
-```
-
-### 3. Run the Application
-
-```bash
-streamlit run simplified_app.py
-```
-
-## Troubleshooting Permission Issues
-
-If you still encounter permission issues when deploying:
-
-1. **Pre-download the JAR file**: You can manually download the SPARQL-Anything JAR and place it in the temp directory:
-   ```bash
-   mkdir -p /tmp/sparql-anything
-   wget https://github.com/SPARQL-Anything/sparql.anything/releases/download/v0.8.2/sparql-anything-0.8.2.jar -O /tmp/sparql-anything/sparql-anything-0.8.2.jar
-   chmod 755 /tmp/sparql-anything/sparql-anything-0.8.2.jar
-   ```
-
-2. **Set environment variable**: Modify the app to use a specific directory for the JAR:
-   ```bash
-   export SPARQL_ANYTHING_JAR_DIR=/path/to/writable/directory
-   ```
-
-3. **Run with elevated permissions**: If deploying in a Docker container, ensure the container has proper permissions.
+1. Go to [Streamlit Cloud](https://streamlit.io/cloud)
+2. Sign in with your GitHub account
+3. Select "New app"
+4. Select your repository, branch, and the `streamlit_cloud_app.py` file
+5. Click "Deploy"
 
 ## How It Works
 
-1. The application patches the SPARQL-Anything library to use a fixed temporary directory
-2. When a file is uploaded, it's saved to a temporary location
-3. A simple SPARQL query is constructed to transform the file to RDF
-4. The SPARQL-Anything engine processes the query and returns the result as Turtle (TTL) format
-5. The result is displayed and made available for download
+Instead of using the SPARQL-Anything library (which requires Java), this application:
+
+1. Parses files using standard Python libraries (xml.etree, json, pandas)
+2. Implements custom logic to convert the parsed data to RDF Turtle format
+3. Generates RDF triples that roughly follow the Facade-X model
+4. Returns the RDF for display and download
+
+## Limitations
+
+This pure Python implementation has some limitations compared to the full SPARQL-Anything toolkit:
+
+- Only supports XML, JSON, and CSV files (not Excel, HTML, etc.)
+- Uses a simplified RDF transformation model 
+- Does not support SPARQL queries for transformation
+- Limited customization options
+
+## Future Improvements
+
+If you need the full power of SPARQL-Anything in the cloud:
+
+1. Consider deploying on a platform that supports Java (Heroku, AWS, etc.)
+2. Build a containerized version with Docker that includes both Python and Java
+3. Use a serverless function to handle the transformation as a backend service
