@@ -1,14 +1,57 @@
 import os
 import tempfile
+import sys
 
-# Set environment variable to use /tmp for jar file storage before importing pysparql_anything
-os.environ["PYSPARQL_ANYTHING_DIR"] = tempfile.gettempdir()
+# Monkey patch approach to fix permission issues
+# Import pysparql_anything modules without initializing
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# First, try to import without initialization to modify the download path
+import pysparql_anything.utilities as sa_utilities
+import pysparql_anything.__about__ as sa_about
 
+# Store the original download function
+original_download = sa_utilities.download_sparql_anything
+
+# Create a new download function that uses the temp directory
+def patched_download_sparql_anything(ghub, uri, version):
+    """Patched download function that uses a temporary directory"""
+    # Get the temp directory
+    temp_dir = tempfile.gettempdir()
+    
+    # Modify the jar path to use the temp directory
+    jarname = f"sparql-anything-{version}.jar"
+    path2jar = os.path.join(temp_dir, jarname)
+    
+    # Print for debugging
+    print(f"Downloading SPARQL Anything JAR to: {path2jar}")
+    
+    # Use the original function's logic but with the new path
+    dl_link = sa_utilities.get_release_uri(ghub, uri, version)
+    import requests
+    from tqdm import tqdm
+    
+    request = requests.get(dl_link, stream=True, timeout=10.0)
+    length = int(request.headers.get('content-length', 0))
+    
+    with open(path2jar, 'wb') as jar:
+        with tqdm(colour='green', total=length, unit='iB', unit_scale=True, 
+                 unit_divisor=1024) as pbar:
+            for data in request.iter_content(chunk_size=1024):
+                jar.write(data)
+                pbar.update(len(data))
+    
+    # Set this path as the jar path for SPARQL Anything
+    sa_about.__jarPath__ = path2jar
+    
+    return path2jar
+
+# Replace the original function with our patched version
+sa_utilities.download_sparql_anything = patched_download_sparql_anything
+
+# Now import the actual package after the monkey patching
 import streamlit as st
 import pysparql_anything as sa
-import tempfile
-import os
 import base64
 import json
 import time
@@ -161,7 +204,7 @@ def main():
         
         advanced_options = st.expander("Advanced Options")
         with advanced_options:
-            jvm_options = st.text_input("JVM Options (comma separated)", "-Xmx2g")
+            jvm_options = st.text_input("JVM Options (comma separated)", "-Xmx1g")
         
         # Templates section
         st.header("Templates")
