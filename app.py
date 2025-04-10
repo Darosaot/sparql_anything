@@ -25,9 +25,6 @@ WHERE {
     SERVICE <x-sparql-anything:{file_path}> {
         ?s ?p ?o .
     }
-}<x-sparql-anything:{file_path}> {
-        ?s ?p ?o .
-    }
 }
 """
     },
@@ -50,30 +47,6 @@ WHERE {
         ?person xyz:name ?name .
         OPTIONAL { ?person xyz:age ?age . }
         OPTIONAL { ?person xyz:email ?email . }
-    }
-}
-"""
-    },
-    "CSV to Organizations": {
-        "description": "Convert CSV data to an organizations dataset with Organization ontology",
-        "query": """
-PREFIX xyz: <http://sparql.xyz/facade-x/data/>
-PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-PREFIX fx: <http://sparql.xyz/facade-x/ns/>
-PREFIX org: <http://www.w3.org/ns/org#>
-PREFIX schema: <http://schema.org/>
-
-CONSTRUCT {
-    ?org a org:Organization ;
-         schema:name ?name ;
-         schema:location ?location ;
-         schema:description ?description .
-}
-WHERE {
-    SERVICE <x-sparql-anything:{file_path}> {
-        ?org xyz:name ?name .
-        OPTIONAL { ?org xyz:location ?location . }
-        OPTIONAL { ?org xyz:description ?description . }
     }
 }
 """
@@ -132,6 +105,33 @@ if 'history' not in st.session_state:
 if 'saved_configs' not in st.session_state:
     st.session_state.saved_configs = {}
 
+def generate_default_query(file_path):
+    """Generate a default SPARQL query based on the file path"""
+    # Replace {file_path} placeholder with actual file path
+    base_query = """
+PREFIX xyz: <http://sparql.xyz/facade-x/data/>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX fx: <http://sparql.xyz/facade-x/ns/>
+
+CONSTRUCT {
+    ?s ?p ?o .
+}
+WHERE {
+    SERVICE <x-sparql-anything:{file_path}> {
+        ?s ?p ?o .
+    }
+}"""
+    return base_query.replace("{file_path}", file_path)
+
+def get_download_link(content, filename, link_text):
+    """Generate a download link for file content"""
+    # Encode content as base64
+    b64 = base64.b64encode(content.encode()).decode()
+    
+    # Create download link
+    href = f'<a href="data:file/txt;base64,{b64}" download="{filename}">{link_text}</a>'
+    return href
+
 def main():
     st.set_page_config(
         page_title="RDF Converter",
@@ -184,7 +184,7 @@ def main():
         st.markdown("This app uses [SPARQL-Anything](https://sparql-anything.cc/) to convert files to RDF.")
     
     # Main content tabs
-    tabs = st.tabs(["File Conversion", "Batch Processing", "Transformation History", "API Usage", "About"])
+    tabs = st.tabs(["File Conversion", "Batch Processing", "Transformation History", "About"])
     
     with tabs[0]:  # File Conversion tab
         col1, col2 = st.columns([1, 1])
@@ -339,11 +339,6 @@ def main():
                     f"Download result as {file_extension.upper()}"
                 )
                 st.markdown(download_link, unsafe_allow_html=True)
-                
-                # Add visualization option for RDF data
-                if st.session_state.result_format in ['ttl', 'nt', 'nq']:
-                    if st.button("Visualize RDF Graph"):
-                        st.info("Visualization functionality would be implemented here. For complex graphs, you might want to use tools like GraphDB, Protégé, or other specialized RDF visualization tools.")
     
     with tabs[1]:  # Batch Processing tab
         st.header("Batch Processing")
@@ -594,133 +589,12 @@ WHERE {
                 else:
                     st.text(entry['result'])
     
-    with tabs[3]:  # API Usage tab
-        st.header("API Usage")
-        st.markdown("""
-        ## REST API for RDF Conversion
-        
-        This application includes a REST API for programmatic conversion of files to RDF. You can send requests to transform files without using the web interface.
-        
-        ### Endpoint
-        
-        `POST /api/convert`
-        
-        ### Request Format
-        
-        ```json
-        {
-            "file": "base64_encoded_file_content",
-            "filename": "example.json",
-            "query": "PREFIX xyz: <http://sparql.xyz/facade-x/data/>\\nPREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\\nPREFIX fx: <http://sparql.xyz/facade-x/ns/>\\n\\nCONSTRUCT {\\n    ?s ?p ?o .\\n}\\nWHERE {\\n    SERVICE <x-sparql-anything:${file_path}> {\\n        ?s ?p ?o .\\n    }\\n}",
-            "output_format": "ttl",
-            "variables": {
-                "var1": "value1",
-                "var2": "value2"
-            }
-        }
-        ```
-        
-        ### Response Format
-        
-        ```json
-        {
-            "success": true,
-            "result": "base64_encoded_result",
-            "format": "ttl"
-        }
-        ```
-        
-        ### Example using Python
-        
-        Here's how to use the API with Python:
-        """)
-        
-        st.code("""
-import requests
-import base64
-import os
-
-def convert_to_rdf(file_path, query, output_format="ttl", variables=None, api_url="http://localhost:8000/api/convert"):
-    # Read file and encode as base64
-    with open(file_path, 'rb') as f:
-        file_content = base64.b64encode(f.read()).decode()
-    
-    # Prepare request
-    data = {
-        "file": file_content,
-        "filename": os.path.basename(file_path),
-        "query": query,
-        "output_format": output_format
-    }
-    
-    if variables:
-        data["variables"] = variables
-    
-    # Send request
-    response = requests.post(api_url, json=data)
-    
-    # Process response
-    if response.status_code == 200:
-        result = response.json()
-        if result['success']:
-            # Decode result
-            rdf_content = base64.b64decode(result['result']).decode()
-            return rdf_content
-        else:
-            raise Exception(f"API Error: {result.get('error', 'Unknown error')}")
-    else:
-        raise Exception(f"HTTP Error: {response.status_code}")
-
-# Example usage
-query = '''
-PREFIX xyz: <http://sparql.xyz/facade-x/data/>
-PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-PREFIX fx: <http://sparql.xyz/facade-x/ns/>
-
-CONSTRUCT {
-    ?s ?p ?o .
-}
-WHERE {
-    SERVICE <x-sparql-anything:${file_path}> {
-        ?s ?p ?o .
-    }
-}
-'''
-
-# Convert a single file
-rdf_data = convert_to_rdf('example.json', query, 'ttl')
-print(rdf_data)
-
-# Batch conversion example
-def batch_convert_to_rdf(file_paths, query_template, output_format="ttl", api_url="http://localhost:8000/api/convert"):
-    results = {}
-    
-    for file_path in file_paths:
-        try:
-            result = convert_to_rdf(file_path, query_template, output_format, api_url=api_url)
-            results[file_path] = {
-                "success": True,
-                "result": result
-            }
-        except Exception as e:
-            results[file_path] = {
-                "success": False,
-                "error": str(e)
-            }
-    
-    return results
-
-# Example batch usage
-files = ['file1.json', 'file2.csv', 'file3.xml']
-batch_results = batch_convert_to_rdf(files, query)
-        """, language="python")
-    
-    with tabs[4]:  # About tab
+    with tabs[3]:  # About tab
         st.header("About this Application")
         st.markdown("""
         ## RDF Converter Powered by SPARQL-Anything
         
-        This application leverages the capabilities of SPARQL-Anything to transform various file formats into RDF data. It provides both a user-friendly web interface and a programmatic API for data conversion.
+        This application leverages the capabilities of SPARQL-Anything to transform various file formats into RDF data.
         
         ### Features
         
@@ -730,18 +604,11 @@ batch_results = batch_convert_to_rdf(files, query)
         - **Custom SPARQL Queries**: Create your own transformation logic using SPARQL
         - **Multiple Output Formats**: Generate RDF in various serialization formats (Turtle, JSON-LD, N-Triples, etc.)
         - **Transformation History**: Track past conversions and reuse successful queries
-        - **API Access**: Programmatically convert files using the REST API
         - **Configuration Management**: Save and load transformation settings
         
         ### How it Works
         
         The app uses PySPARQL-Anything, a Python wrapper for the SPARQL-Anything tool. SPARQL-Anything implements the Façade-X meta-model, which maps source data structures onto RDF components without requiring upfront schema knowledge.
-        
-        The transformation process follows these steps:
-        1. The source file is uploaded (or provided via API)
-        2. A SPARQL query defines the transformation logic
-        3. SPARQL-Anything executes the query against the source data
-        4. The result is returned as RDF in the specified format
         
         ### Use Cases
         
@@ -750,35 +617,7 @@ batch_results = batch_convert_to_rdf(files, query)
         - **Legacy Data Migration**: Convert legacy data formats into modern, semantic representations
         - **Open Data Publishing**: Transform government or organizational data into linked open data
         - **Public Procurement Analysis**: Convert procurement data from different formats to a standard RDF model
-        - **Research Data Management**: Create FAIR (Findable, Accessible, Interoperable, Reusable) data
-        - **Semantic Enrichment**: Add semantic context to existing data sources
-        
-        ### Advanced Features
-        
-        - **Custom Ontology Mapping**: Map source data to domain-specific ontologies
-        - **SPARQL Query Templates**: Save and reuse successful transformation patterns
-        - **Batch Processing**: Process multiple files with the same transformation logic
-        - **Programmatic Integration**: Integrate with other systems via the REST API
-        
-        ### Technology Stack
-        
-        - **SPARQL-Anything**: Core transformation engine
-        - **PySPARQL-Anything**: Python wrapper for SPARQL-Anything
-        - **Streamlit**: Web interface framework
-        - **FastAPI**: REST API implementation
-        - **Python**: Application logic and scripting
         """)
 
-def generate_default_query(file_path):
-    """Generate a default SPARQL query based on the file path"""
-    # Replace {file_path} placeholder with actual file path
-    base_query = """
-PREFIX xyz: <http://sparql.xyz/facade-x/data/>
-PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-PREFIX fx: <http://sparql.xyz/facade-x/ns/>
-
-CONSTRUCT {
-    ?s ?p ?o .
-}
-WHERE {
-    SERVICE 
+if __name__ == "__main__":
+    main()
