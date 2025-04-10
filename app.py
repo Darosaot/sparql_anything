@@ -1,3 +1,10 @@
+import os
+import tempfile
+
+# Set environment variable to use /tmp for jar file storage before importing pysparql_anything
+os.environ["PYSPARQL_ANYTHING_DIR"] = tempfile.gettempdir()
+
+
 import streamlit as st
 import pysparql_anything as sa
 import tempfile
